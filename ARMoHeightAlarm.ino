@@ -1,6 +1,6 @@
 #define heightParam 39
 #define gpsNorthParam 22
-#define frameBlink 20
+#define frameBlink 30
 #define alarmCheckInterval 3000
 
 int altAlarm = 4; // set this to 100m :-)
@@ -21,7 +21,7 @@ long framesParsed = 0; // Number of total frames parsed
 long debugValues[256]; // Contains ALL the parsed debug values
 unsigned long running = 0; // The 'clock' in msec elapsed
 unsigned long lastHeightFrame = 0;
-unsigned long lastAlarm = 0;
+unsigned long lastNoHeightFramesAlarm = 0;
 int heightFrameAlarm = 2000; // If no heightframe has been parsed for this amount of msec, sound the alarm
 boolean noHeightFrames = false;
 
@@ -59,10 +59,10 @@ void loop() {
     }
   }
   running = millis();
-  checkAlarms();
+  checkNoHeightFramesAlarms();
 }
 
-void checkAlarms() {
+void checkNoHeightFramesAlarms() {
   if((running - lastHeightFrame) > heightFrameAlarm) {
     noHeightFrames = true;
   } 
@@ -72,9 +72,9 @@ void checkAlarms() {
 
   if(noHeightFrames) {
     setAlarmLEDS();
-    if((running - lastAlarm) > alarmCheckInterval) {
+    if((running - lastNoHeightFramesAlarm) > alarmCheckInterval) {
       tone(buzzPin, 5000, 100);
-      lastAlarm = millis();
+      lastNoHeightFramesAlarm = millis();
     }
   }
 }
@@ -134,17 +134,15 @@ void checkHeight() {
       info2On = !info2On;
 
       if(height >= altAlarm) {
-        tone(buzzPin, 2000, 100);        
-        delay(20);
-        tone(buzzPin, 5000, 200);
-        delay(20);
-        tone(buzzPin, 1000, 100);
         digitalWrite(errPin, HIGH);
+        tone(buzzPin, 2000, 100);        
+        delay(50);
+        tone(buzzPin, 6000, 100);
+        delay(100);
+        tone(buzzPin, 1000, 100);        
       } 
       else {
-
         digitalWrite(errPin, LOW);
-
       }
 
 
@@ -191,6 +189,8 @@ void setAlarmLEDS() {
   digitalWrite(errPin, HIGH);
   errOn= true;
 }
+
+
 
 
 
