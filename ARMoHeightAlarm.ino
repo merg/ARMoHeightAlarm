@@ -3,7 +3,7 @@
 #define frameBlink 30
 #define alarmCheckInterval 3000
 
-int altAlarm = 4; // set this to 100m :-)
+int altAlarm = 30; // set this to 100m :-)
 
 int infoPin = 10;
 int info2Pin = 11;
@@ -129,7 +129,7 @@ void checkHeight() {
   if(lastDebugParm==heightParam) {
     lastHeightFrame = millis();
     if(debugValues[heightParam] != 0xFF) {
-      int height =debugValues[heightParam] * 20 / 1000;
+      int height =debugValues[heightParam] / 1760;
       digitalWrite(info2Pin, (info2On ? LOW : HIGH));
       info2On = !info2On;
 
