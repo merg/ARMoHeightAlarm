@@ -1,3 +1,5 @@
+#include <LiquidCrystal.h>
+
 #define heightParam 39
 #define gpsNorthParam 22
 #define frameBlink 30
@@ -5,13 +7,16 @@
 
 int altAlarm = 70; // set this to 100m :-)
 
-int infoPin = 4;
-int info2Pin = 7;
-int errPin = 8;
+int infoPin = 10;
+int info2Pin = 11;
+int errPin = 12;
 int buzzPin = 13;
+
 boolean infoOn = false;
 boolean info2On = false;
 boolean errOn = false;
+String aobV = "0.1";
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
 
 byte f[7]; // buffer to hold a complete debug frame
 int fc; // framecounter - reference to where the frame has been filled up
@@ -22,8 +27,11 @@ long debugValues[256]; // Contains ALL the parsed debug values
 unsigned long running = 0; // The 'clock' in msec elapsed
 unsigned long lastHeightFrame = 0;
 unsigned long lastNoHeightFramesAlarm = 0;
+unsigned long lastLCDUpdate = 0;
 int heightFrameAlarm = 2000; // If no heightframe has been parsed for this amount of msec, sound the alarm
 boolean noHeightFrames = false;
+String line0 = "";
+String line1 = "";
 
 void setup() {
   pinMode(infoPin, OUTPUT);
@@ -33,14 +41,21 @@ void setup() {
 
   Serial.begin(38400); // 38400,8,N,1 default Arduino  
   setInitLEDS();
-  String s = "GO";
+
+  lcd.begin(16, 2);
+  lcd.clear(); 
+
+
+  String s = "Arm-o-Beep";
+  s.concat(" ");
+  s.concat(aobV);
   Serial.println(s);
+  print(0, s);
 
   // Initialize the debugvalues to 0xFF
   for(int i = 0; i < 256; i++) {
     debugValues[i] = 0xFF;
   }
-
   lastHeightFrame = millis();
 }
 
@@ -60,6 +75,7 @@ void loop() {
   }
   running = millis();
   checkNoHeightFramesAlarms();
+  updateLCD();
 }
 
 void checkNoHeightFramesAlarms() {
@@ -72,10 +88,29 @@ void checkNoHeightFramesAlarms() {
 
   if(noHeightFrames) {
     setAlarmLEDS();
+    line1="No height frames";
     if((running - lastNoHeightFramesAlarm) > alarmCheckInterval) {
-      tone(buzzPin, 5000, 100);
+      tone(buzzPin, 4000, 100);
       lastNoHeightFramesAlarm = millis();
     }
+  }
+}
+
+void updateLCD() {
+  // Update LCD every sec
+  if((running - lastLCDUpdate) > 500) {
+
+    if(line0.length() == 0) {
+      String s = "Frames: ";
+      s.concat(framesParsed);
+      line0=s;
+    }
+
+    print(0, line0);
+    print(1, line1);
+    lastLCDUpdate=millis();
+    line0="";
+    line1="";
   }
 }
 
@@ -104,13 +139,6 @@ boolean parseFrame() {
       val = (val <<8)+ ((long)f[4]&0xff);
       val = (val <<8)+ ((long)f[3]&0xff);
       val = (val <<8)+ ((long)f[2]&0xff);
-
-      //      Serial.print("VAL: ");
-      //      Serial.print(f[1], DEC);
-      //      Serial.print(" [");
-      //      Serial.print(val);
-      //      Serial.print("]: ");
-      //      printFrame();
       debugValues[f[1]] = val;
       framesParsed++;
       lastDebugParm = f[1];
@@ -118,8 +146,8 @@ boolean parseFrame() {
     } 
   }
   else {
-    //Serial.print("INV: ");
-    //printFrame();
+    Serial.print("INV: ");
+    printFrame();
   }
   return false;
 }
@@ -130,21 +158,30 @@ void checkHeight() {
     lastHeightFrame = millis();
     if(debugValues[heightParam] != 0xFF) {
       int height =debugValues[heightParam] *20 / 32000;
+
+      String s = "Alt: ";
+      s.concat(height);
+      s.concat("m");
+      line1=s;
+
       digitalWrite(info2Pin, (info2On ? LOW : HIGH));
       info2On = !info2On;
 
       if(height >= altAlarm) {
+        String s = "Alarm: >";
+        s.concat(altAlarm);
+        s.concat("m");
+        line0=s;
         digitalWrite(errPin, HIGH);
-        tone(buzzPin, 2000, 100);        
+        tone(buzzPin, 800, 100);        
         delay(50);
         tone(buzzPin, 6000, 100);
         delay(100);
-        tone(buzzPin, 1000, 100);        
+        tone(buzzPin, 3000, 100);        
       } 
       else {
         digitalWrite(errPin, LOW);
       }
-
 
       Serial.print("**** Height: ");
       Serial.print(height);
@@ -189,6 +226,25 @@ void setAlarmLEDS() {
   digitalWrite(errPin, HIGH);
   errOn= true;
 }
+
+String fill16(String s) {
+  int sl = s.length();
+  for(int i = 0; i < (16 - sl); i++) {
+    s.concat(' ');
+  }
+  return s;
+}
+
+void print(int l, String s) {
+  lcd.setCursor(0,l);
+  lcd.print(fill16(s));
+}
+
+
+
+
+
+
 
 
 
